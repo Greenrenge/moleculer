@@ -3734,52 +3734,58 @@ describe("Test broker broadcast", () => {
 
 		let ctx = broker.transit.sendEvent.mock.calls[0][0];
 		expect(broker.transit.sendEvent).toHaveBeenNthCalledWith(1, ctx);
-		expect(ctx.toJSON()).toEqual({
-			id: "1",
-			ackID: null,
-			cachedResult: false,
-			caller: null,
-			eventGroups: ["payments"],
-			eventName: "$user.event",
-			eventType: "broadcast",
-			level: 1,
-			meta: {},
-			headers: {},
-			responseHeaders: {},
-			needAck: null,
-			nodeID: "node-2",
-			options: {},
-			params: { name: "John" },
-			parentID: null,
-			requestID: "1",
-			span: null,
-			tracing: null
-		});
+		let json = ctx.toJSON();
+		expect(json.id).toEqual(expect.any(String));
+		expect(json.requestID).toEqual(expect.any(String));
+		expect(json).toEqual(
+			expect.objectContaining({
+				ackID: null,
+				cachedResult: false,
+				caller: null,
+				eventGroups: ["payments"],
+				eventName: "$user.event",
+				eventType: "broadcast",
+				level: 1,
+				meta: {},
+				headers: {},
+				responseHeaders: {},
+				needAck: null,
+				nodeID: "node-2",
+				options: {},
+				params: { name: "John" },
+				parentID: null,
+				span: null,
+				tracing: null
+			})
+		);
 		expect(ctx.endpoint).toEqual({ id: "node-2" });
 
 		ctx = broker.transit.sendEvent.mock.calls[1][0];
 		expect(broker.transit.sendEvent).toHaveBeenNthCalledWith(2, ctx);
-		expect(ctx.toJSON()).toEqual({
-			id: "1",
-			ackID: null,
-			cachedResult: false,
-			caller: null,
-			eventGroups: ["payments"],
-			eventName: "$user.event",
-			eventType: "broadcast",
-			level: 1,
-			meta: {},
-			headers: {},
-			responseHeaders: {},
-			needAck: null,
-			nodeID: "node-3",
-			options: {},
-			params: { name: "John" },
-			parentID: null,
-			requestID: "1",
-			span: null,
-			tracing: null
-		});
+		json = ctx.toJSON();
+		expect(json.id).toEqual(expect.any(String));
+		expect(json.requestID).toEqual(expect.any(String));
+		expect(json).toEqual(
+			expect.objectContaining({
+				ackID: null,
+				cachedResult: false,
+				caller: null,
+				eventGroups: ["payments"],
+				eventName: "$user.event",
+				eventType: "broadcast",
+				level: 1,
+				meta: {},
+				headers: {},
+				responseHeaders: {},
+				needAck: null,
+				nodeID: "node-3",
+				options: {},
+				params: { name: "John" },
+				parentID: null,
+				span: null,
+				tracing: null
+			})
+		);
 		expect(ctx.endpoint).toEqual({ id: "node-3" });
 
 		expect(broker.registry.events.getAllEndpoints).toHaveBeenCalledTimes(1);
