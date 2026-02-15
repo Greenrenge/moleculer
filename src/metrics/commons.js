@@ -176,7 +176,7 @@ function registerCommonMetrics() {
 		name: METRIC.PROCESS_VERSIONS_NODE,
 		type: METRIC.TYPE_INFO,
 		description: "Node version"
-	}).set(process.versions.node);
+	}).set(process.versions.bun || process.versions.node);
 
 	// --- OS METRICS ---
 

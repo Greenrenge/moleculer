@@ -48,11 +48,11 @@ describe("getCpuUsage", () => {
 		return expect(result).resolves.toEqual({ avg: 70, usages: [70] });
 	});
 
-	it("should return rejected promise on missing cpu data", () => {
+	it("should return default values on missing cpu data", () => {
 		os.cpus = jest.fn().mockImplementationOnce(() => undefined);
 
 		const result = getCpuUsage(100);
 		jest.runAllTimers();
-		return expect(result).rejects.toBeInstanceOf(Error);
+		return expect(result).resolves.toEqual({ avg: 0, usages: [] });
 	});
 });

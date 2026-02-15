@@ -6,93 +6,58 @@
 
 "use strict";
 
-let asyncHooks;
-let executionAsyncId;
-
-try {
-	asyncHooks = require("async_hooks");
-	executionAsyncId = asyncHooks.executionAsyncId;
-} catch {
-	// async_hooks is not available (e.g. in Bun runtime)
-	asyncHooks = null;
-	executionAsyncId = null;
-}
+const { AsyncLocalStorage } = require("async_hooks");
 
 class AsyncStorage {
 	constructor(broker) {
 		this.broker = broker;
 
-		if (asyncHooks) {
-			this.hook = asyncHooks.createHook({
-				init: this._init.bind(this),
-				//before: this._before.bind(this),
-				//after: this._after.bind(this),
-				destroy: this._destroy.bind(this),
-				promiseResolve: this._destroy.bind(this)
-			});
-
-			this.executionAsyncId = executionAsyncId;
-		} else {
-			// Provide no-op hook when async_hooks is unavailable
-			this.hook = {
-				enable() {},
-				disable() {}
-			};
-			this.executionAsyncId = () => 0;
-		}
-
+		this.asyncLocalStorage = new AsyncLocalStorage();
 		this.store = new Map();
 	}
 
 	enable() {
-		this.hook.enable();
+		// AsyncLocalStorage is always active; no-op for backward compatibility.
 	}
 
 	disable() {
-		this.hook.disable();
+		this.asyncLocalStorage.disable();
 	}
 
 	stop() {
-		this.hook.disable();
+		this.asyncLocalStorage.disable();
 		this.store.clear();
 	}
 
 	getAsyncId() {
-		return this.executionAsyncId();
+		return 0;
 	}
 
 	setSessionData(data) {
-		const currentUid = this.executionAsyncId();
-		this.store.set(currentUid, {
-			data,
-			owner: currentUid
-		});
+		this.asyncLocalStorage.enterWith(data);
 	}
 
 	getSessionData() {
-		const currentUid = this.executionAsyncId();
-		const item = this.store.get(currentUid);
-		return item ? item.data : null;
+		return this.asyncLocalStorage.getStore() || null;
 	}
 
-	_init(asyncId, type, triggerAsyncId) {
-		// Skip TIMERWRAP type
-		if (type === "TIMERWRAP") return;
-
-		const item = this.store.get(triggerAsyncId);
-		if (item) {
-			this.store.set(asyncId, item);
-		}
+	/**
+	 * Run a function within the context of the given data.
+	 * The data will be available via `getSessionData()` within the
+	 * callback and all async operations it initiates.
+	 *
+	 * @param {any} data
+	 * @param {Function} fn
+	 * @returns {any} The return value of `fn`
+	 */
+	run(data, fn) {
+		return this.asyncLocalStorage.run(data, fn);
 	}
 
-	_destroy(asyncId) {
-		const item = this.store.get(asyncId);
-		if (item) {
-			this.store.delete(asyncId);
-			//if (item.owner == asyncId)
-			//	item.data = null;
-		}
-	}
+	// Kept for backward compatibility; no-ops with AsyncLocalStorage
+	// as context propagation is handled automatically.
+	_init() {}
+	_destroy() {}
 }
 
 module.exports = AsyncStorage;
