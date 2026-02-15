@@ -11,7 +11,7 @@ const C = require("../../src/constants");
 // Load actual utils before jest.mock takes effect.
 // In Jest, jest.mock is hoisted, so jest.requireActual is needed.
 // In Bun, jest.mock is NOT hoisted, so require() returns the real module.
-const _actualUtils =
+const actualUtils =
 	typeof jest.requireActual === "function"
 		? jest.requireActual("../../src/utils")
 		: require("../../src/utils");
@@ -59,13 +59,13 @@ jest.mock("../../src/utils", () => ({
 		return 2;
 	}
 }));
-polyfillPromise = _actualUtils.polyfillPromise;
+polyfillPromise = actualUtils.polyfillPromise;
 
 const utils = require("../../src/utils");
-utils.removeFromArray = _actualUtils.removeFromArray;
-utils.promiseAllControl = _actualUtils.promiseAllControl;
-utils.getConstructorName = _actualUtils.getConstructorName;
-utils.isInheritedClass = _actualUtils.isInheritedClass;
+utils.removeFromArray = actualUtils.removeFromArray;
+utils.promiseAllControl = actualUtils.promiseAllControl;
+utils.getConstructorName = actualUtils.getConstructorName;
+utils.isInheritedClass = actualUtils.isInheritedClass;
 
 const { protectReject } = require("./utils");
 const path = require("path");
