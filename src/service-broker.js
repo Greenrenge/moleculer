@@ -664,7 +664,10 @@ class ServiceBroker {
 		}
 
 		if (repl) {
-			return repl(this, this.options.replOptions);
+			const replFn = repl.default || repl;
+			if (typeof replFn === "function") {
+				return replFn(this, this.options.replOptions);
+			}
 		}
 	}
 

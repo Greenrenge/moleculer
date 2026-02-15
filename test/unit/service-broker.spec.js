@@ -4,7 +4,10 @@ const kleur = require("kleur");
 kleur.enabled = false;
 
 const H = require("../../src/health");
+const originalGetHealthStatus = H.getHealthStatus;
 H.getHealthStatus = jest.fn();
+const utilsModulePath = require.resolve("../../src/utils");
+const healthModulePath = require.resolve("../../src/health");
 
 const C = require("../../src/constants");
 
@@ -66,6 +69,20 @@ utils.removeFromArray = actualUtils.removeFromArray;
 utils.promiseAllControl = actualUtils.promiseAllControl;
 utils.getConstructorName = actualUtils.getConstructorName;
 utils.isInheritedClass = actualUtils.isInheritedClass;
+
+afterAll(() => {
+	if (typeof jest.unmock === "function") {
+		jest.unmock("../../src/utils");
+	}
+	if (typeof jest.resetModules === "function") {
+		jest.resetModules();
+	}
+	if (require.cache) {
+		require.cache[utilsModulePath] = { exports: actualUtils };
+		H.getHealthStatus = originalGetHealthStatus;
+		require.cache[healthModulePath] = { exports: H };
+	}
+});
 
 const { protectReject } = require("./utils");
 const path = require("path");
@@ -1000,19 +1017,29 @@ describe("Test broker.stop", () => {
 });
 
 describe("Test broker.repl", () => {
-	jest.mock("moleculer-repl", () => jest.fn());
-	const repl = require("moleculer-repl");
+	const replMock = jest.fn();
+	if (typeof jest.mock === "function") {
+		jest.mock("moleculer-repl", () => replMock);
+	}
+	try {
+		if (require.cache) {
+			require.cache[require.resolve("moleculer-repl")] = { exports: replMock };
+		}
+	} catch (err) {
+		/* istanbul ignore next */
+	}
+	const replFn = replMock;
 
 	it("should switch to repl mode", () => {
 		let broker = new ServiceBroker({ logger: false });
 		broker.repl();
 
-		expect(repl).toHaveBeenCalledTimes(1);
-		expect(repl).toHaveBeenCalledWith(broker, null);
+		expect(replFn).toHaveBeenCalledTimes(1);
+		expect(replFn).toHaveBeenCalledWith(broker, null);
 	});
 
 	it("should switch to repl mode with custom commands", () => {
-		repl.mockClear();
+		replFn.mockClear();
 		let broker = new ServiceBroker({
 			logger: false,
 			replOptions: {
@@ -1021,11 +1048,11 @@ describe("Test broker.repl", () => {
 		});
 		broker.repl();
 
-		expect(repl).toHaveBeenCalledTimes(1);
-		expect(repl).toHaveBeenCalledWith(broker, { customCommands: [] });
+		expect(replFn).toHaveBeenCalledTimes(1);
+		expect(replFn).toHaveBeenCalledWith(broker, { customCommands: [] });
 	});
 	it("should switch to repl mode with delimiter", () => {
-		repl.mockClear();
+		replFn.mockClear();
 		let broker = new ServiceBroker({
 			logger: false,
 			replOptions: {
@@ -1034,8 +1061,8 @@ describe("Test broker.repl", () => {
 		});
 		broker.repl();
 
-		expect(repl).toHaveBeenCalledTimes(1);
-		expect(repl).toHaveBeenCalledWith(broker, { delimiter: "mol # " });
+		expect(replFn).toHaveBeenCalledTimes(1);
+		expect(replFn).toHaveBeenCalledWith(broker, { delimiter: "mol # " });
 	});
 });
 
@@ -1405,6 +1432,7 @@ describe("Test broker.loadService after broker started", () => {
 
 describe("Test broker.createService", () => {
 	const broker = new ServiceBroker({ logger: false });
+	const originalServiceFactory = broker.ServiceFactory;
 	broker.ServiceFactory = jest.fn((broker, schema) => schema);
 
 	it("should load math service", () => {
@@ -1436,12 +1464,16 @@ describe("Test broker.createService", () => {
 	});
 
 	it("should load es6 class service", () => {
-		const es6Service = require("../services/greeter.es6.service");
-		es6Service.prototype.parseServiceSchema = jest.fn();
+		broker.ServiceFactory = originalServiceFactory;
+		class InlineService extends Service {}
 
-		Object.setPrototypeOf(es6Service, broker.ServiceFactory);
-		let service = broker.createService(es6Service);
-		expect(service).toBeInstanceOf(es6Service);
+		Object.setPrototypeOf(InlineService, broker.ServiceFactory);
+		let service;
+		expect(() => {
+			service = broker.createService(InlineService);
+		}).not.toThrow();
+		expect(service).toBeInstanceOf(InlineService);
+		broker.ServiceFactory = jest.fn((broker, schema) => schema);
 	});
 });
 

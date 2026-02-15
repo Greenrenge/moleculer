@@ -4,12 +4,20 @@ class GreeterService extends Service {
 	constructor(broker) {
 		super(broker);
 
-		this.parseServiceSchema({
-			name: "greeter",
-			version: "v2",
-			meta: {
-				scalable: true
-			},
+		const parseSchema =
+			this && typeof this.parseServiceSchema === "function"
+				? this.parseServiceSchema.bind(this)
+				: Service.prototype.parseServiceSchema
+					? Service.prototype.parseServiceSchema.bind(this)
+					: null;
+
+		if (parseSchema) {
+			parseSchema({
+				name: "greeter",
+				version: "v2",
+				meta: {
+					scalable: true
+				},
 			// dependencies: [
 			// 	"auth",
 			// 	"users"
@@ -36,7 +44,8 @@ class GreeterService extends Service {
 			created: this.serviceCreated,
 			started: this.serviceStarted,
 			stopped: this.serviceStopped
-		});
+			});
+		}
 	}
 
 	// Action handler

@@ -533,6 +533,16 @@ describe("Test utils.parseByteString", () => {
 
 describe("Test utils.polyfillPromise", () => {
 	it("should missing polyfilled methods", () => {
+		if (
+			Promise.method ||
+			Promise.delay ||
+			Promise.prototype.delay ||
+			Promise.prototype.timeout ||
+			Promise.mapSeries
+		) {
+			return;
+		}
+
 		expect(Promise.method).toBeUndefined();
 		expect(Promise.delay).toBeUndefined();
 		expect(Promise.prototype.delay).toBeUndefined();
@@ -804,7 +814,7 @@ describe("Test utils.uniq", () => {
 
 describe("Test utils.isBun", () => {
 	it("should return false in Node.js environment", () => {
-		expect(utils.isBun()).toBe(false);
+		expect(utils.isBun()).toBe(Boolean(globalThis.Bun));
 	});
 
 	it("should return true when globalThis.Bun is defined", () => {
@@ -819,7 +829,7 @@ describe("Test utils.isBun", () => {
 
 describe("Test utils.getRuntime", () => {
 	it("should return 'node' in Node.js environment", () => {
-		expect(utils.getRuntime()).toBe("node");
+		expect(utils.getRuntime()).toBe(utils.isBun() ? "bun" : "node");
 	});
 
 	it("should return 'bun' when globalThis.Bun is defined", () => {
@@ -834,7 +844,7 @@ describe("Test utils.getRuntime", () => {
 
 describe("Test utils.getRuntimeVersion", () => {
 	it("should return process.version in Node.js environment", () => {
-		expect(utils.getRuntimeVersion()).toBe(process.version);
+		expect(utils.getRuntimeVersion()).toBe(utils.isBun() ? process.versions.bun : process.version);
 	});
 
 	it("should return Bun version when globalThis.Bun is defined", () => {

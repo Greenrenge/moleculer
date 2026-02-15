@@ -296,11 +296,15 @@ describe("Test Transit.messageHandler", () => {
 		expect(res).toBe(false);
 
 		expect(broker.broadcastLocal).toHaveBeenCalledTimes(1);
-		expect(broker.broadcastLocal).toHaveBeenCalledWith("$transit.error", {
-			error: new E.ProtocolVersionMismatchError(),
-			module: "transit",
-			type: C.FAILED_PROCESSING_PACKET
-		});
+		const payload = broker.broadcastLocal.mock.calls[0][1];
+		expect(broker.broadcastLocal).toHaveBeenCalledWith(
+			"$transit.error",
+			expect.objectContaining({
+				module: "transit",
+				type: C.FAILED_PROCESSING_PACKET
+			})
+		);
+		expect(payload.error).toBeInstanceOf(E.ProtocolVersionMismatchError);
 	});
 
 	it("should broadcast Error if version mismatch", async () => {
@@ -308,11 +312,15 @@ describe("Test Transit.messageHandler", () => {
 		expect(res).toBe(false);
 
 		expect(broker.broadcastLocal).toHaveBeenCalledTimes(1);
-		expect(broker.broadcastLocal).toHaveBeenCalledWith("$transit.error", {
-			error: new E.ProtocolVersionMismatchError(),
-			module: "transit",
-			type: C.FAILED_PROCESSING_PACKET
-		});
+		const payload = broker.broadcastLocal.mock.calls[0][1];
+		expect(broker.broadcastLocal).toHaveBeenCalledWith(
+			"$transit.error",
+			expect.objectContaining({
+				module: "transit",
+				type: C.FAILED_PROCESSING_PACKET
+			})
+		);
+		expect(payload.error).toBeInstanceOf(E.ProtocolVersionMismatchError);
 	});
 
 	it("should not throw Error if version mismatch & disableVersionCheck is true", async () => {
@@ -3194,18 +3202,18 @@ describe("Test Transit.sendNodeInfo", () => {
 		transit.publish.mockClear();
 		transit.tx.makeBalancedSubscriptions.mockClear();
 
-		return transit.sendNodeInfo(localNodeInfo).then(() => {
-			expect(transit.tx.makeBalancedSubscriptions).toHaveBeenCalledTimes(0);
-			expect(transit.publish).toHaveBeenCalledTimes(1);
-			const packet = transit.publish.mock.calls[0][0];
-			expect(packet).toBeInstanceOf(P.Packet);
-			expect(packet.type).toBe(P.PACKET_INFO);
-			expect(packet.target).toBe();
-			expect(packet.payload).toEqual({
-				client: undefined,
-				config: undefined,
-				hostname: undefined,
-				instanceID: broker.instanceID,
+			return transit.sendNodeInfo(localNodeInfo).then(() => {
+				expect(transit.tx.makeBalancedSubscriptions).toHaveBeenCalledTimes(0);
+				expect(transit.publish).toHaveBeenCalledTimes(1);
+				const packet = transit.publish.mock.calls[0][0];
+				expect(packet).toBeInstanceOf(P.Packet);
+				expect(packet.type).toBe(P.PACKET_INFO);
+				expect(packet.target).toBeUndefined();
+				expect(packet.payload).toEqual({
+					client: undefined,
+					config: undefined,
+					hostname: undefined,
+					instanceID: broker.instanceID,
 				ipList: undefined,
 				metadata: { region: "eu-west1" },
 				seq: undefined,
