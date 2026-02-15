@@ -14,10 +14,26 @@ const C = require("../../src/constants");
 // Load actual utils before jest.mock takes effect.
 // In Jest, jest.mock is hoisted, so jest.requireActual is needed.
 // In Bun, jest.mock is NOT hoisted, so require() returns the real module.
-const actualUtils =
-	typeof jest.requireActual === "function"
-		? jest.requireActual("../../src/utils")
-		: require("../../src/utils");
+const actualUtils = (() => {
+	if (typeof jest.requireActual === "function") {
+		return jest.requireActual("../../src/utils");
+	}
+
+	// Bun doesn't hoist jest.mock and doesn't expose requireActual.
+	// Ensure we read the real module even if it was mocked & cached by a previous test.
+	const cacheKey = require.resolve("../../src/utils");
+	const previous = require.cache && require.cache[cacheKey];
+	if (require.cache) {
+		delete require.cache[cacheKey];
+	}
+	const mod = require("../../src/utils");
+	if (require.cache) {
+		// Restore prior cache entry to avoid surprising other tests.
+		if (previous) require.cache[cacheKey] = previous;
+		else delete require.cache[cacheKey];
+	}
+	return mod;
+})();
 
 let polyfillPromise;
 jest.mock("../../src/utils", () => ({
