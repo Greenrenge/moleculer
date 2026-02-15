@@ -17,7 +17,9 @@ class AsyncStorage {
 	}
 
 	enable() {
-		// AsyncLocalStorage is always active; no-op for backward compatibility.
+		// AsyncLocalStorage does not need explicit enabling.
+		// Once created, it is ready for use with enterWith()/run()/getStore().
+		// Call disable() to clear the store and stop context propagation.
 	}
 
 	disable() {
@@ -30,6 +32,8 @@ class AsyncStorage {
 	}
 
 	getAsyncId() {
+		// AsyncLocalStorage does not expose async IDs.
+		// Returns 0 for backward compatibility.
 		return 0;
 	}
 

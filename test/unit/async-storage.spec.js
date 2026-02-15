@@ -45,10 +45,10 @@ describe("Test 'AsyncStorage' class", () => {
 	});
 
 	describe("Test 'getAsyncId' method", () => {
-		it("should return a number", () => {
+		it("should return 0 (AsyncLocalStorage does not expose async IDs)", () => {
 			const storage = new AsyncStorage(broker);
 			const res = storage.getAsyncId();
-			expect(typeof res).toBe("number");
+			expect(res).toBe(0);
 		});
 	});
 
@@ -97,7 +97,7 @@ describe("Test 'AsyncStorage' class", () => {
 			const storage = new AsyncStorage(broker);
 			const context = { requestId: "test-123" };
 
-			await new Promise((resolve) => {
+			await new Promise(resolve => {
 				storage.setSessionData(context);
 				setTimeout(() => {
 					const result = storage.getSessionData();

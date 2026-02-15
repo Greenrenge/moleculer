@@ -27,7 +27,7 @@ const getClientInfo = () => {
 const getCpuInfo = () => {
 	const cpus = os.cpus();
 	const load = os.loadavg();
-	const cores = Array.isArray(cpus) && cpus.length > 0 ? cpus.length : null;
+	const cores = cpus && cpus.length > 0 ? cpus.length : null;
 	const cpu = {
 		load1: load[0],
 		load5: load[1],

@@ -2,7 +2,7 @@
 
 const _ = require("lodash");
 const BaseTraceExporter = require("./base");
-const { AsyncLocalStorage, executionAsyncId } = require("async_hooks");
+const { executionAsyncId } = require("async_hooks");
 const { isFunction } = require("../../utils");
 
 /**
