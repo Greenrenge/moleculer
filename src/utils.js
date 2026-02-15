@@ -75,6 +75,34 @@ const units = ["h", "m", "s", "ms", "μs", "ns"];
 const divisors = [60 * 60 * 1000, 60 * 1000, 1000, 1, 1e-3, 1e-6];
 
 const utils = {
+	// --- Runtime detection ---
+
+	/**
+	 * Check if the current runtime is Bun.
+	 * @returns {Boolean}
+	 */
+	isBun() {
+		return typeof globalThis.Bun !== "undefined";
+	},
+
+	/**
+	 * Get the name of the current runtime.
+	 * @returns {String} "bun" | "node"
+	 */
+	getRuntime() {
+		if (typeof globalThis.Bun !== "undefined") return "bun";
+		return "node";
+	},
+
+	/**
+	 * Get the version of the current runtime.
+	 * @returns {String}
+	 */
+	getRuntimeVersion() {
+		if (typeof globalThis.Bun !== "undefined") return process.versions.bun || "unknown";
+		return process.version;
+	},
+
 	isFunction(fn) {
 		return typeof fn === "function";
 	},
@@ -285,6 +313,7 @@ const utils = {
 	 */
 	clearRequireCache(filename) {
 		/* istanbul ignore next */
+		if (typeof require === "undefined" || !require.cache) return;
 		Object.keys(require.cache).forEach(function (key) {
 			if (key == filename) {
 				delete require.cache[key];

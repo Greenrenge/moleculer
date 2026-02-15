@@ -6,22 +6,40 @@
 
 "use strict";
 
-const asyncHooks = require("async_hooks");
-const executionAsyncId = asyncHooks.executionAsyncId;
+let asyncHooks;
+let executionAsyncId;
+
+try {
+	asyncHooks = require("async_hooks");
+	executionAsyncId = asyncHooks.executionAsyncId;
+} catch {
+	// async_hooks is not available (e.g. in Bun runtime)
+	asyncHooks = null;
+	executionAsyncId = null;
+}
 
 class AsyncStorage {
 	constructor(broker) {
 		this.broker = broker;
 
-		this.hook = asyncHooks.createHook({
-			init: this._init.bind(this),
-			//before: this._before.bind(this),
-			//after: this._after.bind(this),
-			destroy: this._destroy.bind(this),
-			promiseResolve: this._destroy.bind(this)
-		});
+		if (asyncHooks) {
+			this.hook = asyncHooks.createHook({
+				init: this._init.bind(this),
+				//before: this._before.bind(this),
+				//after: this._after.bind(this),
+				destroy: this._destroy.bind(this),
+				promiseResolve: this._destroy.bind(this)
+			});
 
-		this.executionAsyncId = executionAsyncId;
+			this.executionAsyncId = executionAsyncId;
+		} else {
+			// Provide no-op hook when async_hooks is unavailable
+			this.hook = {
+				enable() {},
+				disable() {}
+			};
+			this.executionAsyncId = () => 0;
+		}
 
 		this.store = new Map();
 	}
@@ -40,11 +58,11 @@ class AsyncStorage {
 	}
 
 	getAsyncId() {
-		return executionAsyncId();
+		return this.executionAsyncId();
 	}
 
 	setSessionData(data) {
-		const currentUid = executionAsyncId();
+		const currentUid = this.executionAsyncId();
 		this.store.set(currentUid, {
 			data,
 			owner: currentUid
@@ -52,7 +70,7 @@ class AsyncStorage {
 	}
 
 	getSessionData() {
-		const currentUid = executionAsyncId();
+		const currentUid = this.executionAsyncId();
 		const item = this.store.get(currentUid);
 		return item ? item.data : null;
 	}

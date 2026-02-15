@@ -7,7 +7,7 @@
 "use strict";
 
 const os = require("os");
-const { getIpList } = require("./utils");
+const { getIpList, getRuntime, getRuntimeVersion } = require("./utils");
 const MOLECULER_VERSION = require("../package.json").version;
 
 /**
@@ -18,22 +18,22 @@ const MOLECULER_VERSION = require("../package.json").version;
 
 const getClientInfo = () => {
 	return {
-		type: "nodejs",
+		type: getRuntime(),
 		version: MOLECULER_VERSION,
-		langVersion: process.version
+		langVersion: getRuntimeVersion()
 	};
 };
 
 const getCpuInfo = () => {
 	const cpus = os.cpus();
 	const load = os.loadavg();
-	const cores = Array.isArray(cpus) ? os.cpus().length : null;
+	const cores = Array.isArray(cpus) && cpus.length > 0 ? cpus.length : null;
 	const cpu = {
 		load1: load[0],
 		load5: load[1],
 		load15: load[2],
 		cores: cores,
-		utilization: Math.min(Math.floor((load[0] * 100) / cores), 100)
+		utilization: cores ? Math.min(Math.floor((load[0] * 100) / cores), 100) : 0
 	};
 
 	return cpu;

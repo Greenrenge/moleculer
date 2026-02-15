@@ -45,14 +45,14 @@ module.exports = function HotReloadMiddleware(broker) {
 	 *
 	 */
 	function watchProjectFiles() {
-		if (!broker.started || (!process.mainModule && !require.main)) return;
+		const mainModule =
+			(typeof process !== "undefined" && process.mainModule) ||
+			(typeof require !== "undefined" && require.main);
+		if (!broker.started || !mainModule) return;
 
 		cache.clear();
 		prevProjectFiles = projectFiles;
 		projectFiles = new Map();
-
-		// Read the main module
-		const mainModule = process.mainModule || require.main;
 
 		// Process the whole module tree
 		processModule(mainModule, null, 0, null);
@@ -144,7 +144,9 @@ module.exports = function HotReloadMiddleware(broker) {
 					broker.logger.info(kleur.bgMagenta().white().bold("Action: Restart broker..."));
 					stopAllFileWatcher(projectFiles);
 					// Clear the whole require cache
-					Object.keys(require.cache).forEach(key => delete require.cache[key]);
+					if (typeof require !== "undefined" && require.cache) {
+						Object.keys(require.cache).forEach(key => delete require.cache[key]);
+					}
 
 					return broker.runner.restartBroker();
 				} else if (watchItem.allServices) {
