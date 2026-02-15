@@ -801,3 +801,58 @@ describe("Test utils.uniq", () => {
 		expect(utils.uniq([undefined, undefined])).toEqual([undefined]);
 	});
 });
+
+describe("Test utils.isBun", () => {
+	it("should return false in Node.js environment", () => {
+		expect(utils.isBun()).toBe(false);
+	});
+
+	it("should return true when globalThis.Bun is defined", () => {
+		globalThis.Bun = {};
+		try {
+			expect(utils.isBun()).toBe(true);
+		} finally {
+			delete globalThis.Bun;
+		}
+	});
+});
+
+describe("Test utils.getRuntime", () => {
+	it("should return 'node' in Node.js environment", () => {
+		expect(utils.getRuntime()).toBe("node");
+	});
+
+	it("should return 'bun' when globalThis.Bun is defined", () => {
+		globalThis.Bun = {};
+		try {
+			expect(utils.getRuntime()).toBe("bun");
+		} finally {
+			delete globalThis.Bun;
+		}
+	});
+});
+
+describe("Test utils.getRuntimeVersion", () => {
+	it("should return process.version in Node.js environment", () => {
+		expect(utils.getRuntimeVersion()).toBe(process.version);
+	});
+
+	it("should return Bun version when globalThis.Bun is defined", () => {
+		globalThis.Bun = {};
+		const origBunVersion = process.versions.bun;
+		process.versions.bun = "1.0.0";
+		try {
+			expect(utils.getRuntimeVersion()).toBe("1.0.0");
+		} finally {
+			delete globalThis.Bun;
+			if (origBunVersion !== undefined) process.versions.bun = origBunVersion;
+			else delete process.versions.bun;
+		}
+	});
+});
+
+describe("Test utils.clearRequireCache", () => {
+	it("should not throw when require.cache exists", () => {
+		expect(() => utils.clearRequireCache("/nonexistent/file.js")).not.toThrow();
+	});
+});
