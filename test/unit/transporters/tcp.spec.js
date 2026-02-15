@@ -1,7 +1,7 @@
 jest.mock("fs");
 const fs = require("fs");
 
-// const lolex = require("@sinonjs/fake-timers");
+const lolex = require("@sinonjs/fake-timers");
 jest.mock("../../../src/transporters/tcp/tcp-reader");
 
 let TcpReader = require("../../../src/transporters/tcp/tcp-reader");
@@ -523,10 +523,10 @@ describe("Test TcpTransporter startUdpServer", () => {
 	});
 
 	it("check timer callback", async () => {
-		jest.useFakeTimers();
+		const clock = lolex.install();
 		transporter.startTimers();
 
-		jest.advanceTimersByTime(2500);
+		clock.tick(2500);
 
 		await promUpdateLocalInfo;
 
@@ -537,6 +537,7 @@ describe("Test TcpTransporter startUdpServer", () => {
 		expect(transporter.sendGossipRequest).toBeCalledTimes(1);
 
 		transporter.stopTimers(); // clean up handle
+		clock.uninstall();
 	});
 
 	it("check stopTimers", () => {

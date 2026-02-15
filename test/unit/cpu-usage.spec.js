@@ -1,12 +1,14 @@
 "use strict";
 
 const os = require("os");
-jest.useFakeTimers();
+const lolex = require("@sinonjs/fake-timers");
 
 const getCpuUsage = require("../../src/cpu-usage");
 
 describe("getCpuUsage", () => {
 	it("should report cpu usage", () => {
+		const clock = lolex.install();
+
 		os.cpus = jest
 			.fn()
 			.mockImplementationOnce(() => [
@@ -44,15 +46,27 @@ describe("getCpuUsage", () => {
 			]);
 
 		const result = getCpuUsage(100);
-		jest.runAllTimers();
-		return expect(result).resolves.toEqual({ avg: 70, usages: [70] });
+		clock.runAll();
+
+		return expect(result)
+			.resolves.toEqual({ avg: 70, usages: [70] })
+			.then(() => {
+				clock.uninstall();
+			});
 	});
 
 	it("should return default values on missing cpu data", () => {
+		const clock = lolex.install();
+
 		os.cpus = jest.fn().mockImplementationOnce(() => undefined);
 
 		const result = getCpuUsage(100);
-		jest.runAllTimers();
-		return expect(result).resolves.toEqual({ avg: 0, usages: [] });
+		clock.runAll();
+
+		return expect(result)
+			.resolves.toEqual({ avg: 0, usages: [] })
+			.then(() => {
+				clock.uninstall();
+			});
 	});
 });
