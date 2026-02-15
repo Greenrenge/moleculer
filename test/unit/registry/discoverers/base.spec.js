@@ -2,6 +2,7 @@
 
 const BaseDiscoverer = require("../../../../src/registry/discoverers").Base;
 const ServiceBroker = require("../../../../src/service-broker");
+const lolex = require("@sinonjs/fake-timers");
 
 describe("Test BaseDiscoverer constructor", () => {
 	const broker = new ServiceBroker({ logger: false });
@@ -171,7 +172,7 @@ describe("Test BaseDiscoverer 'startHeartbeatTimers' method", () => {
 	afterAll(() => discoverer.stop());
 
 	it("should create timers", async () => {
-		jest.useFakeTimers();
+		const clock = lolex.install();
 
 		discoverer.beat = jest.fn();
 		discoverer.checkRemoteNodes = jest.fn();
@@ -184,16 +185,18 @@ describe("Test BaseDiscoverer 'startHeartbeatTimers' method", () => {
 		expect(discoverer.offlineTimer).toBeDefined();
 
 		expect(discoverer.beat).toBeCalledTimes(0);
-		jest.advanceTimersByTime(12000);
+		clock.tick(12000);
 		expect(discoverer.beat).toBeCalledTimes(1);
 
 		expect(discoverer.checkRemoteNodes).toBeCalledTimes(0);
-		jest.advanceTimersByTime(20000);
+		clock.tick(20000);
 		expect(discoverer.checkRemoteNodes).toBeCalledTimes(1);
 
 		expect(discoverer.checkOfflineNodes).toBeCalledTimes(0);
-		jest.advanceTimersByTime(30000);
+		clock.tick(30000);
 		expect(discoverer.checkOfflineNodes).toBeCalledTimes(1);
+
+		clock.uninstall();
 	});
 });
 
@@ -206,7 +209,7 @@ describe("Test BaseDiscoverer 'stopHeartbeatTimers' method", () => {
 	afterAll(() => discoverer.stop());
 
 	it("should stop timers", async () => {
-		jest.useFakeTimers();
+		const clock = lolex.install();
 
 		discoverer.beat = jest.fn();
 		discoverer.checkRemoteNodes = jest.fn();
@@ -224,11 +227,13 @@ describe("Test BaseDiscoverer 'stopHeartbeatTimers' method", () => {
 		expect(discoverer.checkNodesTimer).toBeNull();
 		expect(discoverer.offlineTimer).toBeNull();
 
-		jest.advanceTimersByTime(35000);
+		clock.tick(35000);
 
 		expect(discoverer.beat).toBeCalledTimes(0);
 		expect(discoverer.checkRemoteNodes).toBeCalledTimes(0);
 		expect(discoverer.checkOfflineNodes).toBeCalledTimes(0);
+
+		clock.uninstall();
 	});
 });
 

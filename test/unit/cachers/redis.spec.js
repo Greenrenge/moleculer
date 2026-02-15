@@ -1,5 +1,6 @@
 const ServiceBroker = require("../../../src/service-broker");
 const { protectReject } = require("../utils");
+const lolex = require("@sinonjs/fake-timers");
 
 const C = require("../../../src/constants");
 
@@ -213,7 +214,7 @@ describe("Test RedisCacher cluster", () => {
 	});
 
 	it("should ping based on numeric interval", () => {
-		jest.useFakeTimers();
+		const clock = lolex.install();
 		let broker = new ServiceBroker({ logger: false });
 
 		let opts = {
@@ -226,19 +227,18 @@ describe("Test RedisCacher cluster", () => {
 		cacher.init(broker);
 		cacher.client.ping = jest.fn().mockResolvedValue(undefined);
 
-		jest.advanceTimersByTime(25);
+		clock.tick(25);
 		expect(cacher.client.ping).toHaveBeenCalledTimes(1);
-		jest.advanceTimersByTime(25);
+		clock.tick(25);
 		expect(cacher.client.ping).toHaveBeenCalledTimes(2);
-		jest.advanceTimersByTime(25);
+		clock.tick(25);
 		expect(cacher.client.ping).toHaveBeenCalledTimes(3);
 
-		jest.clearAllTimers();
-		jest.useRealTimers();
+		clock.uninstall();
 	});
 
 	it("should ping based on numeric string interval", () => {
-		jest.useFakeTimers();
+		const clock = lolex.install();
 		let broker = new ServiceBroker({ logger: false });
 
 		let opts = {
@@ -251,19 +251,18 @@ describe("Test RedisCacher cluster", () => {
 		cacher.init(broker);
 		cacher.client.ping = jest.fn().mockResolvedValue(undefined);
 
-		jest.advanceTimersByTime(25);
+		clock.tick(25);
 		expect(cacher.client.ping).toHaveBeenCalledTimes(1);
-		jest.advanceTimersByTime(25);
+		clock.tick(25);
 		expect(cacher.client.ping).toHaveBeenCalledTimes(2);
-		jest.advanceTimersByTime(25);
+		clock.tick(25);
 		expect(cacher.client.ping).toHaveBeenCalledTimes(3);
 
-		jest.clearAllTimers();
-		jest.useRealTimers();
+		clock.uninstall();
 	});
 
 	it("should not ping with malformed pingInterval", () => {
-		jest.useFakeTimers();
+		const clock = lolex.install();
 		let broker = new ServiceBroker({ logger: false });
 
 		let opts = {
@@ -276,15 +275,14 @@ describe("Test RedisCacher cluster", () => {
 		cacher.init(broker);
 		cacher.client.ping = jest.fn().mockResolvedValue(undefined);
 
-		jest.advanceTimersByTime(25);
+		clock.tick(25);
 		expect(cacher.client.ping).toHaveBeenCalledTimes(0);
-		jest.advanceTimersByTime(25);
+		clock.tick(25);
 		expect(cacher.client.ping).toHaveBeenCalledTimes(0);
-		jest.advanceTimersByTime(25);
+		clock.tick(25);
 		expect(cacher.client.ping).toHaveBeenCalledTimes(0);
 
-		jest.clearAllTimers();
-		jest.useRealTimers();
+		clock.uninstall();
 	});
 });
 
@@ -783,7 +781,7 @@ describe("Test RedisCacher close", () => {
 	});
 
 	it("should clear interval", () => {
-		jest.useFakeTimers();
+		const clock = lolex.install();
 		let broker = new ServiceBroker({ logger: false });
 
 		let opts = {
@@ -795,13 +793,12 @@ describe("Test RedisCacher close", () => {
 		cacher.init(broker); // for empty logger
 		cacher.client.ping = jest.fn().mockResolvedValue(undefined);
 
-		expect(jest.getTimerCount()).toBe(1);
+		expect(clock.countTimers()).toBe(1);
 
 		cacher.close();
-		expect(jest.getTimerCount()).toBe(0);
+		expect(clock.countTimers()).toBe(0);
 
-		jest.clearAllTimers();
-		jest.useRealTimers();
+		clock.uninstall();
 	});
 });
 
