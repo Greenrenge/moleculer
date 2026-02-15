@@ -841,12 +841,19 @@ describe("Test Errors.resolveRegenerator", () => {
 		expect(result).toBeInstanceOf(errors.Regenerator);
 	});
 
-	it.each([-1, 0, 1, "", "custom", {}, null, undefined, [], true, false, () => {}])(
-		"should resolve to Errors.Regenerator when option is '%p'",
-		option => {
+	// Use forEach instead of it.each for Bun test runner compatibility
+	// (Bun's it.each with %p can misdetect a done callback, causing timeouts)
+	[-1, 0, 1, "", "custom", {}, null, undefined, [], true, false, () => {}].forEach(option => {
+		const label =
+			option === undefined
+				? "undefined"
+				: typeof option === "function"
+					? "[Function]"
+					: JSON.stringify(option);
+		it(`should resolve to Errors.Regenerator when option is '${label}'`, () => {
 			const result = errors.resolveRegenerator(option);
 
 			expect(result).toBeInstanceOf(errors.Regenerator);
-		}
-	);
+		});
+	});
 });
