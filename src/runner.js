@@ -21,9 +21,15 @@ const inspect = require("util").inspect;
 const _ = require("lodash");
 const Args = require("args");
 const os = require("os");
-/** @type {Cluster} */
-// @ts-ignore
-const cluster = require("cluster");
+
+/** @type {Cluster | null} */
+let cluster;
+try {
+	cluster = require("cluster");
+} catch {
+	cluster = null;
+}
+
 const kleur = require("kleur");
 
 /**
@@ -458,6 +464,13 @@ class MoleculerRunner {
 	 * Start cluster workers
 	 */
 	startWorkers(instances) {
+		if (!cluster) {
+			logger.error(
+				"Cluster module is not available in the current runtime. Multi-instance mode is not supported."
+			);
+			return;
+		}
+
 		let stopping = false;
 
 		cluster.on("exit", function (worker, code) {
@@ -510,7 +523,7 @@ class MoleculerRunner {
 	 * Start Moleculer broker
 	 */
 	startBroker() {
-		this.worker = cluster.worker;
+		this.worker = cluster ? cluster.worker : null;
 
 		if (this.worker) {
 			Object.assign(this.config, {
@@ -570,7 +583,7 @@ class MoleculerRunner {
 		return Promise.resolve()
 			.then(() => this.processFlags(args))
 			.then(() => {
-				if (this.flags.instances !== undefined && cluster.isPrimary) {
+				if (this.flags.instances !== undefined && cluster && cluster.isPrimary) {
 					this.startWorkers(this.flags.instances);
 				} else {
 					return this._run();

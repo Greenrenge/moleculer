@@ -15,19 +15,33 @@ describe("Test Async Storage class", () => {
 
 		const context = { a: 5 };
 
+		// Set session data before starting the promise chain.
+		// With AsyncLocalStorage, enterWith() propagates through async
+		// operations created after it's called.
+		storage.setSessionData(context);
 		return Promise.resolve()
 			.then(() => {
-				storage.setSessionData(context);
 				expect(storage.getSessionData()).toBe(context);
 			})
 			.then(() => {
 				expect(storage.getSessionData()).toBe(context);
 			});
-		/*.then(() => new Promise(resolve => setTimeout(resolve, 50)));
-			.then(() => {
-				// TODO: need fix
-				expect(storage.getSessionData()).toBe(context);
-			});
-			*/
+	});
+
+	it("should store context using run pattern", () => {
+		const broker = {};
+		const storage = new AsyncStorage(broker);
+
+		const context = { b: 10 };
+
+		return storage.run(context, () => {
+			return Promise.resolve()
+				.then(() => {
+					expect(storage.getSessionData()).toBe(context);
+				})
+				.then(() => {
+					expect(storage.getSessionData()).toBe(context);
+				});
+		});
 	});
 });

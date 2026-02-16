@@ -14,12 +14,17 @@ const crypto = require("crypto");
  *
  * @param {String|Buffer} password
  * @param {String?} algorithm
- * @param {String|Buffer?} iv
+ * @param {String|Buffer} iv
  */
 module.exports = function EncryptionMiddleware(password, algorithm = "aes-256-cbc", iv) {
 	if (!password || password.length === 0) {
 		/* istanbul ignore next */
 		throw new Error("Must be set a password for encryption");
+	}
+
+	if (!iv) {
+		/* istanbul ignore next */
+		throw new Error("Must be set an initialization vector (IV) for encryption");
 	}
 
 	let logger;
@@ -35,9 +40,7 @@ module.exports = function EncryptionMiddleware(password, algorithm = "aes-256-cb
 
 		transporterSend(next) {
 			return (topic, data, meta) => {
-				const encrypter = iv
-					? crypto.createCipheriv(algorithm, password, iv)
-					: crypto.createCipher(algorithm, password);
+				const encrypter = crypto.createCipheriv(algorithm, password, iv);
 				const res = Buffer.concat([encrypter.update(data), encrypter.final()]);
 				return next(topic, res, meta);
 			};
@@ -46,9 +49,7 @@ module.exports = function EncryptionMiddleware(password, algorithm = "aes-256-cb
 		transporterReceive(next) {
 			return (cmd, data, s) => {
 				try {
-					const decrypter = iv
-						? crypto.createDecipheriv(algorithm, password, iv)
-						: crypto.createDecipher(algorithm, password);
+					const decrypter = crypto.createDecipheriv(algorithm, password, iv);
 					const res = Buffer.concat([decrypter.update(data), decrypter.final()]);
 					return next(cmd, res, s);
 				} catch (err) {

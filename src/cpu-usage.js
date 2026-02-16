@@ -17,7 +17,12 @@ const os = require("os");
 module.exports = function getCpuUsage(sampleTime = 100) {
 	return new Promise((resolve, reject) => {
 		try {
-			const first = os.cpus().map(cpu => cpu.times);
+			const cpus = os.cpus();
+			if (!cpus || cpus.length === 0) {
+				return resolve({ avg: 0, usages: [] });
+			}
+
+			const first = cpus.map(cpu => cpu.times);
 			setTimeout(() => {
 				try {
 					const second = os.cpus().map(cpu => cpu.times);

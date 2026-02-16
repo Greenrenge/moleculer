@@ -2,6 +2,7 @@
 
 jest.mock("ioredis");
 const Redis = require("ioredis");
+const lolex = require("@sinonjs/fake-timers");
 
 Redis.Cluster = jest.fn(() => {
 	let onCallbacks = {};
@@ -344,17 +345,19 @@ describe("Test RedisDiscoverer 'recreateInfoUpdateTimer' method", () => {
 		expect(discoverer.infoUpdateTimer).toBeNull();
 		discoverer.client.expire = jest.fn();
 
-		jest.useFakeTimers();
+		const clock = lolex.install();
 		// ---- ^ SETUP ^ ---
 		await discoverer.recreateInfoUpdateTimer();
 		// ---- ˇ ASSERTS ˇ ---
 		expect(discoverer.infoUpdateTimer).toBeDefined();
 
-		jest.advanceTimersByTime(21 * 60 * 1000);
+		clock.tick(21 * 60 * 1000);
 
 		expect(discoverer.recreateInfoUpdateTimer).toBeCalledTimes(2);
 		expect(discoverer.client.expire).toBeCalledTimes(1);
 		expect(discoverer.client.expire).toBeCalledWith("MOL-DSCVR-INFO:node-99", 3600);
+
+		clock.uninstall();
 	});
 });
 

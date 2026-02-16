@@ -2,7 +2,7 @@
 
 const _ = require("lodash");
 const BaseTraceExporter = require("./base");
-const asyncHooks = require("async_hooks");
+const { executionAsyncId } = require("async_hooks");
 const { isFunction } = require("../../utils");
 
 /**
@@ -170,7 +170,7 @@ class DatadogTraceExporter extends BaseTraceExporter {
 		sc._spanId = this.convertID(span.id);
 
 		// Activate span in Datadog tracer
-		const asyncId = asyncHooks.executionAsyncId();
+		const asyncId = executionAsyncId();
 		this.ddScope._spans = this.ddScope._spans || {};
 		const oldSpan = this.ddScope._spans[asyncId];
 
@@ -222,7 +222,7 @@ class DatadogTraceExporter extends BaseTraceExporter {
 	 * @memberof DatadogTraceExporter
 	 *
 	activatePromise(span, promise) {
-		const asyncId = asyncHooks.executionAsyncId();
+		const asyncId = executionAsyncId();
 		const oldSpan = this.ddScope._spans[asyncId];
 
 		this.ddScope._spans[asyncId] = span;

@@ -8,6 +8,14 @@ H.getHealthStatus = jest.fn();
 
 const C = require("../../src/constants");
 
+// Load actual utils before jest.mock takes effect.
+// In Jest, jest.mock is hoisted, so jest.requireActual is needed.
+// In Bun, jest.mock is NOT hoisted, so require() returns the real module.
+const actualUtils =
+	typeof jest.requireActual === "function"
+		? jest.requireActual("../../src/utils")
+		: require("../../src/utils");
+
 let polyfillPromise;
 jest.mock("../../src/utils", () => ({
 	getNodeID() {
@@ -51,13 +59,13 @@ jest.mock("../../src/utils", () => ({
 		return 2;
 	}
 }));
-polyfillPromise = jest.requireActual("../../src/utils").polyfillPromise;
+polyfillPromise = actualUtils.polyfillPromise;
 
 const utils = require("../../src/utils");
-utils.removeFromArray = jest.requireActual("../../src/utils").removeFromArray;
-utils.promiseAllControl = jest.requireActual("../../src/utils").promiseAllControl;
-utils.getConstructorName = jest.requireActual("../../src/utils").getConstructorName;
-utils.isInheritedClass = jest.requireActual("../../src/utils").isInheritedClass;
+utils.removeFromArray = actualUtils.removeFromArray;
+utils.promiseAllControl = actualUtils.promiseAllControl;
+utils.getConstructorName = actualUtils.getConstructorName;
+utils.isInheritedClass = actualUtils.isInheritedClass;
 
 const { protectReject } = require("./utils");
 const path = require("path");
