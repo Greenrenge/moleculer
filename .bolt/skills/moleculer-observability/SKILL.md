@@ -321,3 +321,23 @@ The `retryable` flag determines whether the retry middleware will retry the erro
 - `BrokerDisconnectedError` wipes its own stack trace (`this.stack = ""`) to reduce log noise.
 - `RequestSkippedError` explicitly sets `retryable = false` even though it extends `MoleculerError` (not `MoleculerRetryableError`). Distributed timeout produces this — retrying would just timeout again.
 - Non-Error rejections (strings, objects) in action handlers are coerced to `MoleculerError(err, 500)` by the error handler middleware.
+
+## Source files
+
+When moleculer is installed as a dependency, the full source is at `node_modules/moleculer/src/`. Read these files to verify behavior or dig deeper:
+
+- `node_modules/moleculer/src/tracing/tracer.js` — `Tracer` class, constructor config with defaults, `shouldSample()` sampling algorithm, `startSpan()`, exporter resolution, `invokeExporter()`
+- `node_modules/moleculer/src/tracing/span.js` — `Span` class, `start()`/`finish()`, `addTags()`/`log()`/`setError()`, `startSpan()` (child span), timing via `perf_hooks`
+- `node_modules/moleculer/src/tracing/exporters/index.js` — exporter registry, `resolve()`, built-in exporters (Console, Jaeger, Zipkin, Datadog, NewRelic, Event)
+- `node_modules/moleculer/src/tracing/exporters/jaeger.js`, `zipkin.js`, `datadog.js` — individual exporter implementations
+- `node_modules/moleculer/src/middlewares/tracing.js` — tracing middleware, `tracingLocalActionMiddleware` (span creation, tag resolution, params capture), `tracingLocalEventMiddleware`
+- `node_modules/moleculer/src/metrics/registry.js` — `MetricRegistry`, constructor config, `register()`, `increment()`/`set()`/`observe()`, process metrics collection, name/label regex validation
+- `node_modules/moleculer/src/metrics/constants.js` — all metric name constants (`METRIC.*`), metric type constants, unit constants
+- `node_modules/moleculer/src/metrics/types/index.js` — metric type registry (Counter, Gauge, Histogram, Info)
+- `node_modules/moleculer/src/metrics/reporters/index.js` — reporter registry (Console, Prometheus, Datadog, CSV, StatsD, Event)
+- `node_modules/moleculer/src/middlewares/metrics.js` — metrics middleware, `created()` (auto-registered metrics), `getActionHandler` (request/event timing)
+- `node_modules/moleculer/src/loggers/index.js` — logger registry, `resolve()`, built-in loggers
+- `node_modules/moleculer/src/loggers/base.js` — `BaseLogger`, `LEVELS`, `getLogLevel()` (per-module glob matching), `getLogHandler()`
+- `node_modules/moleculer/src/loggers/formatted.js` — `FormattedLogger`, `formatter` options (full/short/simple/json/jsonext), `getNextColor()` hash, `autoPadding`
+- `node_modules/moleculer/src/loggers/console.js` — Console logger (extends Formatted)
+- `node_modules/moleculer/src/errors.js` — full error hierarchy, `ExtendableError`, all error classes with codes/types/retryable flags

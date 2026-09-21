@@ -197,3 +197,12 @@ The runner loads the config, creates a broker, loads services from the specified
 - **Not setting `requestTimeout` in production.** The default is `0` (no timeout). A slow or dead service will hang callers indefinitely.
 - **Using `disableBalancer: true` with TCP transporter.** TCP has no built-in balancer. The broker will log a warning and keep its own balancer regardless.
 - **Forgetting that `stop()` waits for in-flight contexts.** If `tracking.enabled` is `true` and a handler is stuck, shutdown blocks for `shutdownTimeout` ms. Set a reasonable timeout.
+
+## Source files
+
+When moleculer is installed as a dependency, the full source is at `node_modules/moleculer/src/`. Read these files to verify behavior or dig deeper:
+
+- `node_modules/moleculer/src/service-broker.js` — `ServiceBroker` class, `defaultOptions` (lines 60-165 for every option with defaults), `start()` (lines 500-549), `stop()` (lines 556-641), `call()` (lines 1216-1275), `mcall()` (lines 1405-1438), `emit()` (lines 1450-1539), `INTERNAL_MIDDLEWARES` array (lines 167-182)
+- `node_modules/moleculer/src/middleware.js` — `MiddlewareHandler`, `registerMiddlewares`, `wrapMethod`, `wrapHandler`, `callHandlers` (middleware ordering and wrapping logic)
+- `node_modules/moleculer/src/runner.js` — moleculer-runner CLI logic (config loading, service globbing, broker creation)
+- `node_modules/moleculer/bin/moleculer-runner.js` — CLI entry point, argument parsing via `args` package

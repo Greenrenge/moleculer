@@ -247,3 +247,16 @@ Per-service override: `settings.$shutdownTimeout`.
 - **Not understanding that retry re-runs the full stack.** Each retry attempt re-validates, re-checks the circuit breaker, re-applies timeout. This is correct behavior but means retry amplifies load — set reasonable `retries` and `delay`.
 - **Forgetting that circuit breaker only counts local errors.** If node A calls node B and B returns an error, A's breaker for that endpoint doesn't trip — only B's local breaker counts B's handler failures.
 - **Not setting `check` on circuit breaker.** The default counts `code >= 500`. If your service throws custom errors without a code, they won't trip the breaker. Ensure errors have proper codes.
+
+## Source files
+
+When moleculer is installed as a dependency, the full source is at `node_modules/moleculer/src/`. Read these files to verify behavior or dig deeper:
+
+- `node_modules/moleculer/src/middlewares/circuit-breaker.js` — CB state machine (CLOSED/OPEN/HALF_OPEN/HALF_OPEN_WAIT), `resetStore`, `trip`, `halfOpen`, `checkThreshold`, per-endpoint state Map, window timer
+- `node_modules/moleculer/src/middlewares/retry.js` — retry algorithm, exponential backoff computation, double-retry prevention guard, `ctx.copy()` on retry
+- `node_modules/moleculer/src/middlewares/timeout.js` — timeout resolution precedence, `startHrTime` setting, Bluebird `.timeout()` dependency, stream timeout signaling
+- `node_modules/moleculer/src/middlewares/bulkhead.js` — concurrency queue per-action, `QueueIsFullError` rejection, `callNext` drain logic
+- `node_modules/moleculer/src/middlewares/fallback.js` — per-call `fallbackResponse` vs action-level `action.fallback`, `ctx.fallbackResult` flag
+- `node_modules/moleculer/src/middlewares/error-handler.js` — non-Error coercion, `transit.removePendingRequest` cleanup, `broker.errorHandler` delegation
+- `node_modules/moleculer/src/middlewares/context-tracker.js` — in-flight tracking, `waitingForActiveContexts` graceful shutdown polling, force-clear on timeout
+- `node_modules/moleculer/src/errors.js` — full error hierarchy, `retryable` flags, `MoleculerError`/`MoleculerRetryableError`/`MoleculerClientError`/`RequestSkippedError`/`QueueIsFullError`

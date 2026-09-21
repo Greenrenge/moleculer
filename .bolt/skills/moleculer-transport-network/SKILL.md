@@ -284,3 +284,21 @@ heartbeatTimeout: 30   // seconds — node marked offline if no heartbeat
 - **Using `cacher: true` (Memory) in a multi-node setup.** Memory cacher is per-node — each node has its own cache. Use Redis for shared caching across nodes.
 - **Not configuring `heartbeatTimeout` appropriately.** The default 30s is generous. On fast networks, a lower value detects failures quicker. On unreliable networks, keep it high to avoid false positives.
 - **Setting `preferLocal: false` for no reason.** Local calls skip serialization and network. Only set `false` if you need even distribution for testing or if local endpoints are intentionally degraded.
+
+## Source files
+
+When moleculer is installed as a dependency, the full source is at `node_modules/moleculer/src/`. Read these files to verify behavior or dig deeper:
+
+- `node_modules/moleculer/src/transporters/index.js` — transporter registry, `resolve()` (string/URL/object/class), `getByName`, URL-scheme matching, `register()` for custom transporters
+- `node_modules/moleculer/src/transporters/base.js` — `Base` transporter, `init()`, `publish()`, `subscribe()`, topic naming (`getTopicName`), balanced request/event topics, `makeBalancedSubscriptions`
+- `node_modules/moleculer/src/transporters/nats.js`, `tcp.js`, `redis.js`, `amqp.js`, `kafka.js`, `mqtt.js` — individual transporter implementations
+- `node_modules/moleculer/src/transit.js` — `Transit` class, `connect()`/`disconnect()`/`ready()`, `afterConnect()`, reconnection logic, pending request/stream maps, `makeSubscriptions()` (packet types subscribed)
+- `node_modules/moleculer/src/cachers/index.js` — cacher registry, `resolve()` (boolean/string/URL/object/class)
+- `node_modules/moleculer/src/cachers/base.js` — `Base` cacher, `middleware()` (cache get/set wrapping, lock logic), `defaultKeygen`, `getCacheKey`, `_hashedKey`, `middlewareWithLock`/`middlewareWithoutLock` (thundering herd prevention)
+- `node_modules/moleculer/src/cachers/memory.js` — Memory cacher, TTL check interval, `getWithTTL` sliding expiration, cloning, `Lock` usage
+- `node_modules/moleculer/src/cachers/redis.js` — Redis cacher, ioredis integration, cluster mode, redlock, ping interval, serializer for values
+- `node_modules/moleculer/src/serializers/index.js` — serializer registry, `resolve()`, built-in types
+- `node_modules/moleculer/src/strategies/index.js` — strategy registry, `resolve()` (returns class, not instance)
+- `node_modules/moleculer/src/strategies/shard.js` — consistent hashing, `rebuild()` ring construction, `getNodeIDByKey` ceiling lookup, LRU cache, `getKeyFromContext` (#meta vs params)
+- `node_modules/moleculer/src/registry/discoverers/index.js` — discoverer registry, `resolve()`
+- `node_modules/moleculer/src/registry/discoverers/base.js` — heartbeat timers, `checkRemoteNodes`, `checkOfflineNodes`, `heartbeatReceived` (seq/instanceID change detection), `startHeartbeatTimers`/`stopHeartbeatTimers`

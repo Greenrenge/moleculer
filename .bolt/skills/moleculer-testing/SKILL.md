@@ -274,3 +274,21 @@ These tests create and destroy brokers/services repeatedly and check that memory
 - **Jest config has `rootDir: "./src"`.** Import paths in tests use `../` to reference the test directory, and `../../src/` to reference source files.
 - **No transform.** Tests are plain CommonJS. `import/export` syntax won't work in test files without a transform configured.
 - **`waitForServices` needs the registry to be populated.** In unit tests with no transporter, services are immediately available. In integration tests with a transporter, you may need to wait for INFO packets.
+
+## Source files
+
+When moleculer is installed as a dependency, the full source is at `node_modules/moleculer/src/`. Read these files to verify behavior or dig deeper — and look at the framework's own test suite for canonical testing patterns:
+
+- `node_modules/moleculer/test/unit/service.spec.js` — unit tests for the Service class (schema parsing, mixin merging, lifecycle hooks, action/event creation)
+- `node_modules/moleculer/test/unit/service-broker.spec.js` — broker creation, start/stop, call/mcall, emit/broadcast, service loading
+- `node_modules/moleculer/test/unit/context.spec.js` — context creation, copy, call chaining, meta merge-back, distributed timeout
+- `node_modules/moleculer/test/unit/middleware.spec.js` — middleware registration, wrapping order, hook invocation
+- `node_modules/moleculer/test/integration/broker.spec.js` — integration tests for broker lifecycle and service interactions
+- `node_modules/moleculer/test/integration/circuit-breaker.spec.js` — CB state machine transitions with fake timers
+- `node_modules/moleculer/test/integration/retry.spec.js` — retry with backoff, double-retry prevention
+- `node_modules/moleculer/test/integration/service-mixins.spec.js` — mixin merge precedence, settings/hooks/actions/events
+- `node_modules/moleculer/test/integration/service.lifecycle.spec.js` — service start/stop order, dependencies, waitForServices
+- `node_modules/moleculer/test/e2e/scenarios/basic/` — minimal E2E scenario (node1.js, scenario.js, start.sh)
+- `node_modules/moleculer/test/e2e/scenarios/balancing/` — multi-node load balancing E2E
+- `node_modules/moleculer/test/leak-detection/index.spc.js` — memory leak detection test patterns
+- `node_modules/moleculer/test/typescript/tsd/` — TypeScript type definition tests (tsd)

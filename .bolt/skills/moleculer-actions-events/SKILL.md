@@ -318,3 +318,14 @@ For a single action invocation:
 - **Storing large objects in `ctx.meta`.** Meta is serialized for remote calls. Keep it small.
 - **Not using `ctx.call` for sub-calls.** Using `broker.call` inside an action creates a new root context — you lose requestID chaining, distributed timeout, and meta propagation. Always use `ctx.call` or `ctx.mcall` inside handlers.
 - **Assuming `emit` delivers to all handlers.** `emit` is balanced — one per group. Use `broadcast` for all.
+
+## Source files
+
+When moleculer is installed as a dependency, the full source is at `node_modules/moleculer/src/`. Read these files to verify behavior or dig deeper:
+
+- `node_modules/moleculer/src/context.js` — `Context` class, `Context.create` (static factory with parent chaining), `copy()`, `call()` (distributed timeout logic), `mcall()`, `emit()`/`broadcast()` from context, `startSpan()`/`finishSpan()`
+- `node_modules/moleculer/src/service-broker.js` — `call()` (lines 1216-1275), `mcall()` (lines 1405-1438), `emit()` (lines 1450-1539), `broadcast()` (lines 1551-1620), `broadcastLocal()` (lines 1632-1662)
+- `node_modules/moleculer/src/middlewares/action-hook.js` — before/after/error hook execution order, `sanitizeHooks`, `callHook`, `callErrorHook`
+- `node_modules/moleculer/src/middlewares/validator.js` — validator middleware delegation
+- `node_modules/moleculer/src/validators/fastest.js` — fastest-validator integration, `compile()`, `validate()`, `middleware()`
+- `node_modules/moleculer/src/service.js` — `_createAction()` (action normalization, cache defaulting, name prefixing), `_createEvent()` (event handler wrapping)

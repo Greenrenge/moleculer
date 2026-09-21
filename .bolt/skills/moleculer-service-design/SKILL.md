@@ -151,3 +151,11 @@ All hooks can be a single function or an array. Arrays run sequentially. The `st
 - **Deep call chains inside a single action.** If `orders.create` calls `users.get` which calls `auth.check` synchronously, consider whether these should be events or whether the orchestration belongs in a dedicated saga service.
 - **Blocking the event loop in an action.** Action handlers run on the main event loop. CPU-heavy work (image processing, large JSON parsing) blocks all other requests. Offload to a worker thread or child process.
 - **Not handling event handler errors.** Event handler errors are caught and logged by the broker but don't propagate to the emitter. If your event handler must not silently fail, add explicit error handling and consider using a dead-letter pattern.
+
+## Source files
+
+When moleculer is installed as a dependency, the full source is at `node_modules/moleculer/src/`. Read these files to verify behavior or dig deeper:
+
+- `node_modules/moleculer/src/service.js` — Service class, `parseServiceSchema`, `applyMixins`, `mergeSchemas` (all per-key merge strategies), lifecycle hooks (`_init`, `_start`, `_stop`), action/event/method creation
+- `node_modules/moleculer/src/service-broker.js` — `createService`, `loadService`, `loadServices`, `waitForServices`, `destroyService` (lines 876-989 for service management)
+- `node_modules/moleculer/src/middlewares/action-hook.js` — hook resolution, `sanitizeHooks`, execution order chain
