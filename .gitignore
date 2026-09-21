@@ -13,3 +13,4 @@ logs/
 
 generated-types/
 dist/
+.env
