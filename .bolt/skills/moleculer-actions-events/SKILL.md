@@ -1,0 +1,320 @@
+---
+name: moleculer-actions-events
+description: Conventions for defining and calling Moleculer actions, events, hooks, context usage, and parameter validation. Use whenever the user asks to create actions, define event handlers, use before/after/error hooks, call actions with broker.call or ctx.call, work with ctx.meta and ctx.params, set up parameter validation, use mcall, emit/broadcast events, or troubleshoot action/event behavior. Also use when the user asks about context chaining, distributed timeout, or request-scoped metadata.
+---
+
+# Moleculer Actions, Events, and Context
+
+Guidance for the request-reply and event-driven patterns in Moleculer 0.15.x.
+
+## Actions
+
+Actions are the primary RPC interface. Each action is registered in the service schema under `actions` and becomes callable via `broker.call("service.action", params)`.
+
+### Defining actions
+
+```js
+module.exports = {
+  name: "users",
+  actions: {
+    // Shorthand: function directly
+    list: ctx => { return []; },
+
+    // Full definition
+    create: {
+      rest: "POST /users",        // optional: for moleculer-web
+      params: {                   // validation schema (fastest-validator)
+        name: "string|required",
+        email: "email|required"
+      },
+      timeout: 5000,              // per-action timeout (ms)
+      retryPolicy: { enabled: true, retries: 3 },
+      circuitBreaker: { enabled: true, threshold: 0.5 },
+      bulkhead: { enabled: true, concurrency: 5 },
+      cache: { enabled: true, keys: ["name"] },
+      tracing: { tags: { params: ["name", "email"] } },
+      handler(ctx) {
+        return this.createUser(ctx.params);
+      }
+    },
+
+    // Set to false to remove an action inherited from a mixin
+    inheritedActionToRemove: false
+  }
+};
+```
+
+### Action naming
+
+By default, action names are prefixed with the full service name: `users.create`. The `name` property in the action definition overrides the action name (defaults to the key name). Setting `settings.$noServiceNamePrefix = true` removes the service name prefix entirely — use cautiously.
+
+### The handler function
+
+The handler receives a `Context` object and returns a Promise (or value). Inside the handler:
+- `this` is the service instance — use `this.actions.xxx(params, opts)` to call other actions on the same service (avoids network round-trip for local calls)
+- `ctx.params` is the validated input
+- `ctx.meta` is request-scoped metadata (see below)
+- `ctx.call("other.action", params)` makes a sub-call that chains context
+
+Keep handlers thin. Delegate to domain logic. Don't block the event loop with synchronous CPU work.
+
+### Calling actions
+
+```js
+// Basic call
+const result = await broker.call("users.create", { name: "John" });
+
+// With options
+const result = await broker.call("users.list", { page: 1 }, {
+  timeout: 5000,
+  retries: 3,
+  nodeID: "node-1",        // direct call to specific node
+  meta: { authToken: "..." },
+  caller: "orders-service"  // for tracing/metrics labels
+});
+
+// From within an action handler
+async handler(ctx) {
+  const user = await ctx.call("users.get", { id: ctx.params.userId });
+  // ctx.call chains: parentID, requestID, meta, and tracing propagate
+}
+```
+
+### Calling options
+
+| Option | Type | Effect |
+|--------|------|--------|
+| `timeout` | number (ms) | Per-call timeout. Overrides `action.timeout` and `broker.options.requestTimeout` |
+| `retries` | number | Per-call retry count. Overrides `retryPolicy.retries` |
+| `nodeID` | string | Direct call to a specific node (bypasses load balancing) |
+| `meta` | object | Merged into `ctx.meta` (overwrites parent meta for matching keys) |
+| `ctx` | Context | Reuse an existing context instead of creating new one |
+| `requestID` | string | Custom request ID (for trace correlation) |
+| `caller` | string | Override the caller label (used in metrics/tracing) |
+| `paramsCloning` | boolean | Deep-clone params for this call |
+| `tracking` | boolean | Override global tracking setting for this call |
+| `stream` | Stream | Attach a stream to the context (for file uploads) |
+
+### mcall — parallel calls
+
+```js
+// Array form — returns array of results
+const [users, posts] = await broker.mcall([
+  { action: "users.list", params: {} },
+  { action: "posts.list", params: {} }
+], { settled: false });  // settled: true = don't reject on partial failure
+
+// Object form — returns keyed object
+const result = await broker.mcall({
+  users: { action: "users.list" },
+  posts: { action: "posts.list" }
+});
+```
+
+### Private actions
+
+Actions whose name starts with `~` are private — they're not published to the registry and can only be called locally. When retry re-invokes a private action, it uses `ctx.service.actions[action.rawName]` directly instead of `broker.call`.
+
+## Context
+
+Every `broker.call` creates a `Context` that flows through the middleware chain. Understanding context is essential for correct meta propagation, timeout management, and tracing.
+
+### Key properties
+
+- `ctx.id` — unique context ID (generated by `broker.generateUid()`)
+- `ctx.requestID` — trace correlation ID, propagated through call chains
+- `ctx.params` — the validated input
+- `ctx.meta` — request-scoped metadata, propagated and **merged back** from sub-calls
+- `ctx.parentID` — parent context's ID (for call chain tracking)
+- `ctx.level` — call depth (starts at 1, increments per nested call)
+- `ctx.caller` — calling service's full name
+- `ctx.nodeID` — target node ID
+- `ctx.options` — the calling options (timeout, retries, etc.)
+- `ctx.startHrTime` — high-res timer for distributed timeout
+- `ctx.tracing` — whether tracing is active for this context
+- `ctx.span` — current tracing span
+- `ctx.eventName` / `ctx.eventType` / `ctx.eventGroups` — for event contexts
+
+### Meta propagation
+
+`ctx.meta` is the standard way to pass request-scoped data (auth tokens, user IDs, locale) through call chains. When a sub-call completes, its meta is **merged back** into the parent's meta:
+
+```js
+async handler(ctx) {
+  ctx.meta.userId = 123;
+  await ctx.call("audit.log", { event: "login" });
+  // If audit.log set ctx.meta.auditId, it's now available here
+  console.log(ctx.meta.auditId);
+}
+```
+
+This merge-back happens on both resolve and reject of sub-calls. Don't store large objects in meta — it's serialized and sent over the network for remote calls.
+
+### Distributed timeout
+
+When `ctx.options.timeout` is set and `ctx.startHrTime` exists, sub-calls compute the **remaining** timeout by subtracting elapsed time:
+
+```
+distTimeout = options.timeout - (now - startHrTime)
+```
+
+If `distTimeout <= 0`, the call rejects with `RequestSkippedError` immediately. This prevents total call chain time from exceeding the root timeout.
+
+### Context copying
+
+`ctx.copy(endpoint)` creates a new context that shares `params`, `meta`, `headers`, `requestID`, `level`, `parentID`, `tracing` — but gets a new `id`. Used internally by retry (to re-issue calls while preserving `_retryAttempts`) and by event balancing.
+
+### Params cloning
+
+By default, params are **not** cloned — they're passed by reference. Enable `broker.options.contextParamsCloning = true` for global cloning, or per-call `opts.paramsCloning = true`. Uses `structuredClone`. Enable if you see bugs from handlers mutating shared params in call chains.
+
+## Parameter validation
+
+Validation uses `fastest-validator`. Define rules in `action.params`:
+
+```js
+params: {
+  id: "number|required",
+  name: { type: "string", min: 2, max: 100 },
+  email: "email",
+  role: { type: "enum", values: ["admin", "user"] },
+  tags: { type: "array", items: "string", optional: true },
+  nested: {
+    $$type: "object",
+    field: "string"
+  }
+}
+```
+
+Validation runs in the `Validator` middleware before the handler. On failure, it throws `RequestValidationError` with code 422 and a `data` array describing each violation.
+
+Disable validation per-action by omitting `params` or setting `validator: false` in broker options.
+
+## Events
+
+Events are the pub/sub mechanism. Unlike actions, events are fire-and-forget — the emitter doesn't wait for handlers to complete (by default).
+
+### Defining event handlers
+
+```js
+module.exports = {
+  name: "notifications",
+  events: {
+    // Simple handler
+    "user.created"(ctx) {
+      this.sendWelcomeEmail(ctx.params);
+    },
+
+    // With options
+    "order.placed": {
+      group: "orders",         // event group (for load balancing)
+      debounce: 2000,          // ms — only last invocation in burst fires
+      throttle: 1000,          // ms — first invocation passes, rest in window dropped
+      handler(ctx) {
+        this.process(ctx.params);
+      }
+    },
+
+    // Wildcard — matches any event starting with "user."
+    "user.**"(ctx) {
+      this.log(ctx.eventName, ctx.params);
+    }
+  }
+};
+```
+
+### Emitting events
+
+```js
+// Emit — balanced: one handler per service group receives it
+await broker.emit("user.created", { id: 123 });
+await broker.emit("user.created", { id: 123 }, "notifications");  // to specific group
+await broker.emit("user.created", { id: 123 }, ["group1", "group2"]);
+
+// Broadcast — all handlers on all nodes receive it
+await broker.broadcast("cache.invalidated", { key: "users:*" });
+
+// Broadcast local — only local handlers
+await broker.broadcastLocal("$broker.started");
+```
+
+### Event groups and load balancing
+
+When multiple services listen to the same event name, they form **groups**. By default, the group name is the service name. `broker.emit` delivers the event to **one handler per group** (balanced). `broker.broadcast` delivers to **all handlers** across all nodes.
+
+If you want all instances of the same service to receive an event, use `broadcast` or assign a unique group name.
+
+### Event handler errors
+
+Event handler errors are caught by the broker's error handler and logged, but they **do not propagate** to the emitter. The `emit` promise resolves even if a handler throws. Use `opts.throwError: true` on `emit`/`broadcast` to get the promise to reject on handler errors (but this still doesn't give you the specific handler's error — it's the first rejection found).
+
+### Debounce and throttle
+
+- **Debounce**: only the **last** event in a burst fires (after `debounce` ms of silence). The handler's return value is **dropped** — the promise resolves to `undefined` immediately. Use for fire-and-forget handlers like "rebuild search index."
+- **Throttle**: the **first** event in a window passes, subsequent events within `throttle` ms are dropped. No trailing-edge call. Use for rate-limiting high-frequency events.
+
+Both are event-only (no action hook). The dropped events return a resolved promise — callers see success but the handler didn't run.
+
+## Action hooks (before/after/error)
+
+Service-level hooks wrap all actions. Action-level hooks wrap a single action.
+
+```js
+module.exports = {
+  name: "users",
+  hooks: {
+    before: {
+      "*": ["sanitizeInput"],         // runs before all actions
+      "create": "validateUniqueness",  // runs before create only
+    },
+    after: {
+      "*": "addTimestamp",            // runs after all actions
+      "list": "enrichWithMetadata",
+    },
+    error: {
+      "*": "logError"
+    }
+  },
+  actions: {
+    create: {
+      hooks: {
+        before: ["checkPermissions"],  // action-level, runs after service-level before-hooks
+        after: ["maskSensitiveFields"],
+      },
+      handler(ctx) { return {}; }
+    }
+  }
+};
+```
+
+### Execution order
+
+For a single action invocation:
+1. Service `before["*"]` hooks
+2. Service `before["actionName"]` hooks (matched patterns, in key order)
+3. Action-level `before` hooks
+4. **Handler executes**
+5. Action-level `after` hooks
+6. Service `after["actionName"]` hooks
+7. Service `after["*"]` hooks
+8. (On error) Action-level `error` hooks
+9. (On error) Service `error["actionName"]` hooks
+10. (On error) Service `error["*"]` hooks
+
+### Hook behavior
+
+- **Before hooks**: can mutate `ctx.params`. If a before-hook throws, the handler is skipped and execution jumps to error hooks.
+- **After hooks**: receive the handler's result and can **transform** it. Each after-hook gets the previous hook's return value. The final value is what the caller sees.
+- **Error hooks**: receive the error. Can swallow/recover by returning a value, or re-throw to propagate.
+- Hooks can be functions, strings (resolved to service methods via `this[string]`), or arrays. String hooks that don't match a service method are **silently dropped** (via `lodash.compact`).
+- Hooks run **locally only** — on the node that executes the action, not the calling node.
+- Hook keys support pipe-separated alternatives: `"create|update"` matches both.
+
+## Common mistakes
+
+- **Using `this.settings` for per-request data.** Settings are shared. Use `ctx.meta`.
+- **Forgetting that event handler errors are swallowed.** Add explicit try/catch in event handlers if you need custom error handling.
+- **Expecting debounce/throttle to return the handler's result.** They return `undefined` immediately.
+- **Storing large objects in `ctx.meta`.** Meta is serialized for remote calls. Keep it small.
+- **Not using `ctx.call` for sub-calls.** Using `broker.call` inside an action creates a new root context — you lose requestID chaining, distributed timeout, and meta propagation. Always use `ctx.call` or `ctx.mcall` inside handlers.
+- **Assuming `emit` delivers to all handlers.** `emit` is balanced — one per group. Use `broadcast` for all.
